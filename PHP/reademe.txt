@@ -1,0 +1,5 @@
+1.curl		curl函数,模拟get，post请求
+2.ip		获取客服端IP地址
+3.getUrl	获取当前页面完整的url地址
+4.auth		字符串加密，解密
+
