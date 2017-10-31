@@ -153,4 +153,139 @@ function auth($string, $operation = 'ENCODE', $key = '', $expiry = 0) {
 		return $keyc.rtrim(strtr(base64_encode($result), '+/', '-_'), '=');
 	}
 }
+
+/**
+ * 文件下载
+ * @param $filepath 文件路径
+ * @param $filename 文件名称
+ */
+function fileDown($filepath, $filename = '') {
+	if(!$filename) $filename = basename($filepath);
+	if(is_ie()) $filename = rawurlencode($filename);
+	$filetype = fileext($filename);
+	$filesize = sprintf("%u", filesize($filepath));
+	if(ob_get_length() !== false) @ob_end_clean();
+	header('Pragma: public');
+	header('Last-Modified: '.gmdate('D, d M Y H:i:s') . ' GMT');
+	header('Cache-Control: no-store, no-cache, must-revalidate');
+	header('Cache-Control: pre-check=0, post-check=0, max-age=0');
+	header('Content-Transfer-Encoding: binary');
+	header('Content-Encoding: none');
+	header('Content-type: '.$filetype);
+	header('Content-Disposition: attachment; filename="'.$filename.'"');
+	header('Content-length: '.$filesize);
+	readfile($filepath);
+	exit;
+}
+
+/**
+ * 获取精确到微妙的时间戳
+ */
+function getmicrotime() {
+	list($usec, $sec) = explode(" ",microtime());
+	return ((float)$usec + (float)$sec);
+}
+
+/**
+ * 把INT时间转换字符串时间
+ * @param $n INT时间
+ */
+ function dataformat($n) {
+	$hours = floor($n/3600);
+	$minite	= floor($n%3600/60);
+	$secend = floor($n%3600%60);
+	$minite = $minite < 10 ? "0".$minite : $minite;
+	$secend = $secend < 10 ? "0".$secend : $secend;
+	if($n >= 86400){
+		$day = floor($n/3600);
+		$hours = floor($n%86400/3600);
+		return $day.'天,'.$hours.":".$minite.":".$secend;
+	}elseif($n >= 3600 && $n < 86400){
+		return $hours.":".$minite.":".$secend;
+	}else{
+		return $minite.":".$secend;
+	}
+}
+
+/**
+ * 判断是否是闰年
+ * @param  boolean $year [description]
+ * @return boolean       [description]
+ */
+function isLeapYear($year=false){
+	$time = $year ? mktime(20,20,20,4,20,$year) : time();
+	return date('L',$time);
+}
+
+/**
+ * 获取客户端请求方式，如果传值了则返回true or false，否则返回具体的请求方式
+ * @param  boolean $type [description]
+ * @return [type]        [description]
+ */
+function getRequestMethod($type=false){
+	if(!isset($_SERVER['REQUEST_METHOD'])) return false;
+	if($type && !in_array($type,['isGet','isPost','isAjax','isAjaxGet','isAjaxPost'])) return false;
+	if(strtolower($_SERVER['REQUEST_METHOD']) == 'post'){
+		$requestMethod = 'isPost';
+	}elseif(strtolower($_SERVER['REQUEST_METHOD']) == 'get'){
+		$requestMethod = 'isGet';
+	}
+	if(isset($_SERVER["HTTP_X_REQUESTED_WITH"]) && strtolower($_SERVER["HTTP_X_REQUESTED_WITH"])=="xmlhttprequest"){
+		$requestMethod = 'isAjax'.$requestMethod;
+	}
+	return $type ? $type==$requestMethod : $requestMethod;
+}
+
+/**
+ * [getRand 概率函数] 如：传入['a'=>80,'b'=>20] 根据设置的概率 返回a或者b
+ * @param  [type] $proArr [description]
+ * @return [type]         [description]
+ */
+function getRand($proArr) { 
+    $result = ''; 
+    //概率数组的总概率精度 
+    $proSum = array_sum($proArr); 
+    //概率数组循环 
+    foreach ($proArr as $key => $proCur) { 
+        $randNum = mt_rand(1, $proSum);             //抽取随机数
+        if ($randNum <= $proCur) { 
+            $result = $key;                         //得出结果
+            break; 
+        } else { 
+            $proSum -= $proCur;
+        } 
+    } 
+    unset ($proArr); 
+    return $result; 
+}
+
+/**
+ * [readAllDir 遍历文件夹下的所有文件]
+ * @param  [type] $dir [description]
+ * @return [type]      [description]
+ */
+function readAllDir ( $dir ){
+    $result = array();
+    $handle = opendir($dir);
+    if ( $handle )
+    {
+        while ( ( $file = readdir ( $handle ) ) !== false )
+        {
+            if ( $file != '.' && $file != '..')
+            {
+                $cur_path = $dir . DIRECTORY_SEPARATOR . $file;
+                if ( is_dir ( $cur_path ) )
+                {
+                    $result['dir'][$cur_path] = readAllDir ( $cur_path );
+                }
+                else
+                {
+                    $result[] = $file;
+                }
+            }
+        }
+        closedir($handle);
+    }
+    return $result;
+}
 ?>
