@@ -288,4 +288,30 @@ function readAllDir ( $dir ){
     }
     return $result;
 }
+
+/**
+ * 获取文件名后缀
+ * @param  [type] $filename [description]
+ * @return [type]           [description]
+ */
+function getExtension($filename){ 
+	$myext = substr($filename, strrpos($filename, '.')); 
+	return str_replace('.','',$myext); 
+}
+
+/**
+ * 格式化文件大小
+ * @param  [type] $filename [文件路径+文件名]
+ * @return [type]           [description]
+ */
+function getFormatSize($filename) {
+	if(!is_file($filename)) return false;
+	$size = filesize($filename);
+    $sizes = array(" Bytes", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"); 
+    if ($size == 0) {
+        return('n/a');
+    } else { 
+      return (round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $sizes[$i]);  
+    }
+}
 ?>

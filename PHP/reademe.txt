@@ -9,3 +9,5 @@
 9.getRequestMethod	获取客户端请求方式
 10.getRand		概率函数（用于抽奖等）
 11.readAllDir		遍历文件
+12.getExtension		获取文件名后缀
+13.getFormatSize	获取格式化后的文件大小
