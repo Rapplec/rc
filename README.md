@@ -1,4 +1,4 @@
 rc
 ==
 
-This PHP APP
+This PHP JS lib function
