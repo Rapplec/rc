@@ -8,19 +8,23 @@
  * @param string $url 请求的地址
  * @param string $type POST/GET/post/get
  * @param array $data 要传输的数据
+ * @param array $ua 伪造ua ['CURLOPT_HTTPHEADER'=>'','CURLOPT_USERAGENT'=>'']
  * @param string $err_msg 可选的错误信息
+ * @param boole $header 是否获取相应头信息
  * @param int $timeout 超时时间
  * @param array 证书信息
+ * //依次为百度蜘蛛，google蜘蛛，360蜘蛛
+$ua[0]=['CURLOPT_HTTPHEADER'=>'61.129.45.72','CURLOPT_USERAGENT'=>'Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)'];
+$ua[1]=['CURLOPT_HTTPHEADER'=>'216.239.51.54','CURLOPT_USERAGENT'=>'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'];
+$ua[2]=['CURLOPT_HTTPHEADER'=>'101.226.168.198','CURLOPT_USERAGENT'=>'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)'];
  */
-function curl($url, $type, $data = false, $err_msg = false, $timeout = 20, $cert_info = array())
+function curl($url, $type, $data = false,$ua=[], $err_msg = false, $header=false,$timeout = 20, $cert_info = [])
 {
     $type = strtoupper($type);
     if ($type == 'GET' && is_array($data)) {
         $data = http_build_query($data);
     }
-
     $option = array();
-
     if ( $type == 'POST' ) {
         $option[CURLOPT_POST] = 1;
     }
@@ -31,20 +35,29 @@ function curl($url, $type, $data = false, $err_msg = false, $timeout = 20, $cert
             $url = strpos($url, '?') !== false ? $url.'&'.$data :  $url.'?'.$data;
         }
     }
-
     $option[CURLOPT_URL]            = $url;
     $option[CURLOPT_FOLLOWLOCATION] = TRUE;
     $option[CURLOPT_MAXREDIRS]      = 4;
     $option[CURLOPT_RETURNTRANSFER] = TRUE;
     $option[CURLOPT_TIMEOUT]        = $timeout;
-
+    //伪造UA 简单防止被防爬,提供多个ua
+    if($ua){
+        if($ua['CURLOPT_HTTPHEADER']){
+            $option[CURLOPT_HTTPHEADER] = ['X-FORWARDED-FOR'=>$ua['CURLOPT_HTTPHEADER'],'CLIENT-IP'=>$ua['CURLOPT_HTTPHEADER']];
+        }
+        if($ua['CURLOPT_USERAGENT']){
+            $option[CURLOPT_USERAGENT] = $ua['CURLOPT_USERAGENT'];
+        }
+    }
+    if($header){
+        $option[CURLOPT_HEADER]        = TRUE;
+    }
     //设置证书信息
     if(!empty($cert_info) && !empty($cert_info['cert_file'])) {
         $option[CURLOPT_SSLCERT]       = $cert_info['cert_file'];
         $option[CURLOPT_SSLCERTPASSWD] = $cert_info['cert_pass'];
         $option[CURLOPT_SSLCERTTYPE]   = $cert_info['cert_type'];
     }
-
     //设置CA
     if(!empty($cert_info['ca_file'])) {
         // 对认证证书来源的检查，0表示阻止对证书的合法性的检查。1需要设置CURLOPT_CAINFO
@@ -54,19 +67,32 @@ function curl($url, $type, $data = false, $err_msg = false, $timeout = 20, $cert
         // 对认证证书来源的检查，0表示阻止对证书的合法性的检查。1需要设置CURLOPT_CAINFO
         $option[CURLOPT_SSL_VERIFYPEER] = 0;
     }
-
     $ch = curl_init();
     curl_setopt_array($ch, $option);
     $response = curl_exec($ch);
     $curl_no  = curl_errno($ch);
     $curl_err = curl_error($ch);
     curl_close($ch);
-
     // error_log
     if($curl_no > 0) {
         if($err_msg !== false) {
             $err_msg = '('.$curl_no.')'.$curl_err;
         }
+    }
+    if($header){
+        //分离header与body  两个换行符
+        list($_header, $body) = explode("\r\n\r\n", $response, 2);
+        $str = explode("\r\n",$_header);
+        $header = [];
+        foreach ($str as $key=>$value) {
+            if($key==0){
+                $header['Http-Status'] = $value;
+                continue;
+            }
+            $tmp = explode(':',$value);
+            $header[$tmp[0]] = trim($tmp[1]);
+        }
+        return ['header'=>$header,'body'=>$body];
     }
     return $response;
 }
@@ -313,5 +339,34 @@ function getFormatSize($filename) {
     } else { 
       return (round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $sizes[$i]);  
     }
+}
+
+/**
+ * [getRandStr 获取随机字符串]
+ * @param  integer $length  [获取字符串的长度]
+ * @param  array   $type    ['all' 数字字母大小写;'num',数字;'upper',大写;'lower',小写]
+ * @return string           [返回字符串]
+ */
+function getRandStr($length=6,$type=['all'=>true]){
+	$str = null;
+	$strPol = '';
+	if(isset($type['all'])&&$type['all']){
+		$strPol .= "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+	}else{
+		if(isset($type['upper'])&&$type['upper']){
+			$strPol .='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		}
+		if(isset($type['num'])&&$type['num']){
+			$strPol .='0123456789';
+		}
+		if(isset($type['lower'])&&$type['lower']){
+			$strPol .='abcdefghijklmnopqrstuvwxyz';
+		}
+	}
+	$max = strlen($strPol)-1;
+	for($i=0;$i<$length;$i++){
+		$str.=$strPol[rand(0,$max)];//rand($min,$max)生成介于min和max两个数之间的一个随机整数
+	}
+	return $str;
 }
 ?>
